@@ -1,17 +1,25 @@
 # backend/app/graph/state.py
-from typing import List, Optional, TypedDict
+from typing import List, Optional, Dict
+from pydantic import BaseModel, Field
+from datetime import datetime
+import uuid
 
-
-class GraphState(TypedDict):
+class GraphState(BaseModel):
+    # user input
     topic: str
     urls: List[str]
 
-    # collected data
-    raw_contents: List[str]
+    # pipeline data
+    raw_contents: List[str] = []
+    clean_contents: List[str] = []
+    ranked_contents: Optional[List[Dict]] = None
+    final_post: Optional[str] = None
 
-    # processed data
-    clean_contents: List[str]
+    # execution metadata
+    execution_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    started_at: datetime = Field(default_factory=datetime.utcnow)
+    errors: List[str] = []
+    
 
-    # future (we'll fill later)
-    ranked_contents: Optional[List[str]]
-    final_post: Optional[str]
+    failed_urls: List[str] = []
+    fallback_used: bool = False
