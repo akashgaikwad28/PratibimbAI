@@ -1,13 +1,18 @@
 # backend/app/graph/nodes.py
 
 from bs4 import BeautifulSoup
+from app.utils.metrics import instrument_node
 from app.graph.state import GraphState
 from app.services.web_scraper import fetch_website_text
 from app.utils.logger import get_logger
+from app.services.llm_client import rank_with_llm, LLMError
+from app.services.ranker import heuristic_rank
+import time
 
 logger = get_logger(__name__)
 
 
+@instrument_node("collect")
 def collect_node(state: GraphState) -> GraphState:
     """
     Fetch raw HTML/text from all URLs
@@ -29,6 +34,7 @@ def collect_node(state: GraphState) -> GraphState:
     return state
 
 
+@instrument_node("clean")
 def clean_node(state: GraphState) -> GraphState:
     """
     Clean HTML into readable text
@@ -53,3 +59,31 @@ def clean_node(state: GraphState) -> GraphState:
 
     state.clean_contents = cleaned_contents
     return state
+
+
+@instrument_node("rank")
+def rank_node(state):
+    logger.info("Starting rank_node")
+    start = time.time()
+
+    try:
+        ranked = rank_with_llm(
+            state.clean_contents,
+            state.topic
+        )
+        method = "LLM"
+
+    except LLMError as e:
+        print(f"LLM failed, fallback used: {e}")
+        ranked = heuristic_rank(
+            state.clean_contents,
+            state.topic
+        )
+        method = "heuristic"
+
+    duration = round(time.time() - start, 2)
+    print(f"Finished rank_node using {method} in {duration}s")
+
+    return {
+        "ranked_contents": ranked
+    }
