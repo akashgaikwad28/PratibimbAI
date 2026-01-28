@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+requests
+beautifulsoup4
+python-dotenv
+pydantic
+
+# LangGraph stack
+langgraph
+langchain-core
+langchain-community
+
+# LLMs (user provides key)
+google-generativeai
+openai
