@@ -13,3 +13,4 @@ langchain-community
 # LLMs (user provides key)
 google-generativeai
 openai
+groq
