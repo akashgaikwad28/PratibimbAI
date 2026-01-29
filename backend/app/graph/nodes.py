@@ -5,11 +5,16 @@ from app.utils.metrics import instrument_node
 from app.graph.state import GraphState
 from app.services.web_scraper import fetch_website_text
 from app.utils.logger import get_logger
-from app.services.llm_client import rank_with_llm, LLMError
-from app.services.ranker import heuristic_rank
+from app.services.llm.factory import get_llm
+from app.services.ranker import heuristic_rank, rank_with_llm, LLMError
+from app.utils.prompt_loader import load_prompt
 import time
 
 logger = get_logger(__name__)
+
+
+def fallback_post(state):
+    return f"Latest updates on {state.topic}:\n\n" + "\n".join(state.clean_contents[:2])
 
 
 @instrument_node("collect")
@@ -69,7 +74,9 @@ def rank_node(state):
     try:
         ranked = rank_with_llm(
             state.clean_contents,
-            state.topic
+            state.topic,
+            provider=state.llm_provider,
+            api_key=state.llm_api_key
         )
         method = "LLM"
 
@@ -87,3 +94,38 @@ def rank_node(state):
     return {
         "ranked_contents": ranked
     }
+
+@instrument_node("write")
+def write_post_node(state):
+    logger.info("Starting write_post_node")
+
+    if not state.get("ranked_contents"):
+        state["final_post"] = fallback_post(state)
+        return state
+
+    try:
+        llm = get_llm(
+            provider=state.llm_provider,
+            api_key=state.llm_api_key
+        )
+    except Exception as e:
+        logger.warning(f"LLM init failed: {e}")
+        state["final_post"] = fallback_post(state)
+        return state
+
+    prompt_template = load_prompt("linkedin_post.txt")
+
+    insights = "\n".join(state["ranked_contents"][:3])
+
+    prompt = prompt_template \
+        .replace("{{topic}}", state.topic) \
+        .replace("{{insights}}", insights)
+
+    try:
+        state.final_post = llm.generate(prompt)
+        logger.info("Post generated successfully")
+    except Exception as e:
+        logger.error(f"LLM generation failed: {e}")
+        state.final_post = fallback_post(state)
+
+    return state
