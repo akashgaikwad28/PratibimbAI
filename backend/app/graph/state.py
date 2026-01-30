@@ -20,6 +20,10 @@ class GraphState(BaseModel):
     started_at: datetime = Field(default_factory=datetime.utcnow)
     errors: List[str] = []
     
+    # configuration
+    llm_provider: str = "openai"
+    llm_api_key: Optional[str] = None
+    
 
     failed_urls: List[str] = []
     fallback_used: bool = False
