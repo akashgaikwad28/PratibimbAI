@@ -1,7 +1,8 @@
-from typing import Dict
+from typing import Dict, Optional, Any
 from enum import Enum
 from uuid import uuid4
 from datetime import datetime
+from app.services.database.supabase_client import get_supabase
 
 class JobStatus(str, Enum):
     PENDING = "pending"
@@ -9,14 +10,31 @@ class JobStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
 
-jobs: Dict[str, dict] = {}
-
-def create_job() -> str:
+def create_job(data: Dict[str, Any] = None) -> str:
+    supabase = get_supabase()
     job_id = str(uuid4())
-    jobs[job_id] = {
+    
+    insert_data = {
+        "id": job_id,
         "status": JobStatus.PENDING,
-        "result": None,
-        "error": None,
-        "created_at": datetime.utcnow()
+        "created_at": datetime.utcnow().isoformat()
     }
+    
+    if data:
+        insert_data.update(data)
+
+    supabase.table("jobs").insert(insert_data).execute()
     return job_id
+
+def update_job(job_id: str, data: Dict[str, Any]):
+    supabase = get_supabase()
+    # Handle list/dict objects for JSONB compatibility if needed, 
+    # but supabase-py handles them well usually.
+    supabase.table("jobs").update(data).eq("id", job_id).execute()
+
+def get_job(job_id: str) -> Optional[Dict[str, Any]]:
+    supabase = get_supabase()
+    response = supabase.table("jobs").select("*").eq("id", job_id).execute()
+    if response.data:
+        return response.data[0]
+    return None

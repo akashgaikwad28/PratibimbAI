@@ -11,13 +11,8 @@ def heuristic_rank_node(state: GraphState) -> GraphState:
     ranked = []
 
     for text in state.clean_contents:
-        score = len(text)  # simple heuristic
-        ranked.append({
-            "content": text[:300],
-            "score": score
-        })
+        ranked.append(text[:500])  # store snippet strings
 
-    ranked = sorted(ranked, key=lambda x: x["score"], reverse=True)
     state.ranked_contents = ranked[:3]
     state.fallback_used = True
 

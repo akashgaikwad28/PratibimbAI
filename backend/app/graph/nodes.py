@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 from app.utils.metrics import instrument_node
 from app.graph.state import GraphState
 from app.services.web_scraper import fetch_website_text
+from app.services.youtube import get_video_transcript
 from app.utils.logger import get_logger
 from app.services.llm.factory import get_llm
 from app.services.ranker import heuristic_rank, rank_with_llm, LLMError
@@ -14,7 +15,7 @@ logger = get_logger(__name__)
 
 
 def fallback_post(state):
-    return f"Latest updates on {state.topic}:\n\n" + "\n".join(state.clean_contents[:2])
+    return [f"Latest updates on {state.topic}:\n\n" + "\n".join(state.clean_contents[:2])]
 
 
 @instrument_node("collect")
@@ -27,8 +28,12 @@ def collect_node(state: GraphState) -> GraphState:
     for url in state.urls:
         logger.info(f"Fetching {url}")
         try:
-            html = fetch_website_text(url)
-            raw_contents.append(html)
+            if "youtube.com" in url or "youtu.be" in url:
+                content = get_video_transcript(url)
+            else:
+                content = fetch_website_text(url)
+            
+            raw_contents.append(content)
         except Exception as e:
             error_msg = f"Collect failed for {url}: {e}"
             state.errors.append(error_msg)
@@ -99,8 +104,8 @@ def rank_node(state):
 def write_post_node(state):
     logger.info("Starting write_post_node")
 
-    if not state.get("ranked_contents"):
-        state["final_post"] = fallback_post(state)
+    if not state.ranked_contents:
+        state.final_posts = fallback_post(state)
         return state
 
     try:
@@ -110,22 +115,35 @@ def write_post_node(state):
         )
     except Exception as e:
         logger.warning(f"LLM init failed: {e}")
-        state["final_post"] = fallback_post(state)
+        state.final_posts = fallback_post(state)
         return state
 
-    prompt_template = load_prompt("linkedin_post.txt")
+    prompt_template = load_prompt("content_gen.txt")
 
-    insights = "\n".join(state["ranked_contents"][:3])
+    insights = "\n".join(state.ranked_contents[:3])
 
     prompt = prompt_template \
         .replace("{{topic}}", state.topic) \
-        .replace("{{insights}}", insights)
+        .replace("{{insights}}", insights) \
+        .replace("{{tone}}", state.tone) \
+        .replace("{{style}}", state.style) \
+        .replace("{{platform}}", state.platform) \
+        .replace("{{num_posts}}", str(state.num_posts))
 
     try:
-        state.final_post = llm.generate(prompt)
-        logger.info("Post generated successfully")
+        raw_response = llm.generate(prompt)
+        
+        # Split by the separator defined in content_gen.txt
+        separator = "---POST SEPARATOR---"
+        parts = raw_response.split(separator)
+        
+        # Clean up parts (strip whitespace and filter empty)
+        posts = [p.strip() for p in parts if p.strip()]
+        
+        state.final_posts = posts
+        logger.info(f"Generated {len(posts)} posts successfully")
     except Exception as e:
         logger.error(f"LLM generation failed: {e}")
-        state.final_post = fallback_post(state)
+        state.final_posts = fallback_post(state)
 
     return state

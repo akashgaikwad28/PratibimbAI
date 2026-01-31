@@ -8,12 +8,16 @@ class GraphState(BaseModel):
     # user input
     topic: str
     urls: List[str]
+    tone: str = "Professional"
+    style: str = "Concise"
+    platform: str = "LinkedIn"
+    num_posts: int = 1
 
     # pipeline data
     raw_contents: List[str] = []
     clean_contents: List[str] = []
-    ranked_contents: Optional[List[Dict]] = None
-    final_post: Optional[str] = None
+    ranked_contents: Optional[List[str]] = None
+    final_posts: List[str] = []
 
     # execution metadata
     execution_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
