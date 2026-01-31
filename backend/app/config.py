@@ -11,6 +11,10 @@ class Config:
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
+    # Supabase
+    SUPABASE_URL = os.getenv("SUPABASE_URL")
+    SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
     # App Settings
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
     
