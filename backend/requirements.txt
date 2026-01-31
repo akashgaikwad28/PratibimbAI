@@ -14,3 +14,5 @@ langchain-community
 google-generativeai
 openai
 groq
+supabase
+youtube-transcript-api
