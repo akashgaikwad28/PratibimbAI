@@ -12,6 +12,7 @@ class GraphState(BaseModel):
     style: str = "Concise"
     platform: str = "LinkedIn"
     num_posts: int = 1
+    profession: Optional[str] = None
 
     # pipeline data
     raw_contents: List[str] = []

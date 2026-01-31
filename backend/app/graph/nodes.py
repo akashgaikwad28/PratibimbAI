@@ -128,7 +128,8 @@ def write_post_node(state):
         .replace("{{tone}}", state.tone) \
         .replace("{{style}}", state.style) \
         .replace("{{platform}}", state.platform) \
-        .replace("{{num_posts}}", str(state.num_posts))
+        .replace("{{num_posts}}", str(state.num_posts)) \
+        .replace("{{profession}}", state.profession or "expert content creator")
 
     try:
         raw_response = llm.generate(prompt)
