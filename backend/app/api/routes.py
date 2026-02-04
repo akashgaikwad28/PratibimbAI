@@ -1,9 +1,11 @@
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from app.graph.graph import build_graph
 from app.jobs.store import create_job, update_job, get_job, get_profile, update_profile, JobStatus
-from app.api.schemas import GenerateRequest, UpdateProfile
 from app.utils.logger import get_logger
 from app.config import config
+from app.utils.auth import get_current_user
+from fastapi import Depends
+from gotrue import User
 
 router = APIRouter()
 logger = get_logger("api.generate")
@@ -82,11 +84,10 @@ def run_agent(job_id: str, request: GenerateRequest):
 @router.post("/generate")
 def generate_async(
     request: GenerateRequest,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user)
 ):
-    # Store initial request metadata in DB
-    # TODO: In production, extract user_id from Supabase Auth token
-    user_id = "00000000-0000-0000-0000-000000000000"
+    user_id = user.id
 
     job_id = create_job(user_id, {
         "topic": request.topic,
@@ -113,18 +114,19 @@ def get_job_route(job_id: str):
     return job
 
 @router.get("/profile")
-def get_user_profile():
-    # TODO: Get user_id from auth token
-    user_id = "00000000-0000-0000-0000-000000000000"
+def get_user_profile(user: User = Depends(get_current_user)):
+    user_id = user.id
     profile = get_profile(user_id)
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
     return profile
 
 @router.patch("/profile")
-def update_user_profile(request: UpdateProfile):
-    # TODO: Get user_id from auth token
-    user_id = "00000000-0000-0000-0000-000000000000"
+def update_user_profile(
+    request: UpdateProfile,
+    user: User = Depends(get_current_user)
+):
+    user_id = user.id
     
     # Filter out None values to avoid overwriting existing data with null
     update_data = {k: v for k, v in request.dict().items() if v is not None}
