@@ -2,36 +2,44 @@
 
 @theme {
   --font-sans: "Inter", var(--font-geist-sans);
-  
-  --color-brand-primary: #1d9bf0; /* X/Twitter Blue */
-  --color-brand-secondary: #0077b5; /* LinkedIn Blue */
-  
-  --color-surface-50: #ffffff;
-  --color-surface-100: #f7f9f9;
-  --color-surface-200: #eff3f4;
-  --color-surface-900: #0f1419;
-  
+
+  /* Premium Brand Palette */
+  --color-brand-primary: #1d9bf0;
+  --color-brand-secondary: #0077b5;
+  --color-brand-accent: #794bc4;
+
+  /* Depth & Surface */
+  --color-surface-white: #ffffff;
+  --color-surface-50: #f8fafc;
+  --color-surface-100: #f1f5f9;
+  --color-surface-200: #e2e8f0;
+  --color-surface-900: #0f172a;
+
+  /* Modern Radii */
   --radius-xl: 1rem;
   --radius-2xl: 1.5rem;
-  
-  --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+  --radius-3xl: 2rem;
+
+  /* Layered Shadows */
+  --shadow-premium: 0 10px 40px -10px rgba(0, 0, 0, 0.05);
+  --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.04);
 }
 
 :root {
-  --background: #ffffff;
-  --foreground: #0f1419;
+  --background: #f8fafc;
+  --foreground: #0f172a;
   --card: #ffffff;
-  --card-foreground: #0f1419;
-  --border: #eff3f4;
+  --card-foreground: #0f172a;
+  --border: #e2e8f0;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #000000;
-    --foreground: #f7f9f9;
-    --card: #000000;
-    --card-foreground: #f7f9f9;
-    --border: #2f3336;
+    --background: #020617;
+    --foreground: #f8fafc;
+    --card: #0f172a;
+    --card-foreground: #f8fafc;
+    --border: #1e293b;
   }
 }
 
@@ -44,12 +52,60 @@ body {
   color: var(--foreground);
   font-feature-settings: "rlig" 1, "calt" 1;
   -webkit-font-smoothing: antialiased;
+  background-image:
+    radial-gradient(at 0% 0%, rgba(29, 155, 240, 0.03) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(121, 75, 196, 0.03) 0px, transparent 50%);
+  background-attachment: fixed;
 }
 
-.glass-card {
-  background: rgba(var(--background), 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+/* Glassmorphism Utilities */
+.glass-panel {
+  background: rgba(var(--card), 0.6);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: var(--shadow-glass);
+}
+
+.dark .glass-panel {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Animated Gradient Shimmers */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer-text {
+  background: linear-gradient(90deg, var(--color-brand-primary), var(--color-brand-accent), var(--color-brand-primary));
+  background-size: 200% auto;
+  color: transparent;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: shimmer 4s linear infinite;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-200);
+  border-radius: 10px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--color-surface-900);
 }
