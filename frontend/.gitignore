@@ -20,6 +20,9 @@
 # production
 /build
 
+# docs
+/SensetiveDocs
+
 # misc
 .DS_Store
 *.pem
