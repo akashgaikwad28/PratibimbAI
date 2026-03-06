@@ -1,6 +1,10 @@
 from fastapi import APIRouter, BackgroundTasks, HTTPException
-from app.graph.graph import build_graph
-from app.jobs.store import create_job, update_job, get_job, get_profile, update_profile, JobStatus
+from app.jobs.store import (
+    create_job, update_job, get_job, get_profile, update_profile, 
+    JobStatus, get_sources, create_source, update_source, delete_source
+)
+from app.api.schemas import GenerateRequest, UpdateProfile, SourceCreate, SourceUpdate, SourceResponse
+from app.services.agent import run_agent
 from app.utils.logger import get_logger
 from app.config import config
 from app.utils.auth import get_current_user
@@ -9,77 +13,6 @@ from gotrue import User
 
 router = APIRouter()
 logger = get_logger("api.generate")
-
-graph = build_graph()
-
-def run_agent(job_id: str, request: GenerateRequest):
-    logger.info(f"Job {job_id} started")
-
-    update_job(job_id, {"status": JobStatus.RUNNING})
-
-    try:
-        # 1. Fetch Job and User Profile
-        job = get_job(job_id)
-        if not job:
-            raise Exception("Job record not found")
-        
-        user_id = job.get("user_id")
-        profile = get_profile(user_id) if user_id else None
-        
-        # 2. Extract User-Specific API Key with Priority
-        # Priority: Groq -> Gemini -> OpenAI
-        selected_provider = None
-        active_key = None
-        
-        if profile:
-            if profile.get("groq_api_key"):
-                selected_provider = "groq"
-                active_key = profile.get("groq_api_key")
-            elif profile.get("gemini_api_key"):
-                selected_provider = "gemini"
-                active_key = profile.get("gemini_api_key")
-            elif profile.get("openai_api_key"):
-                selected_provider = "openai"
-                active_key = profile.get("openai_api_key")
-        
-        # 3. Fallback to Request choice or System defaults if no user key found
-        if not active_key:
-            selected_provider = request.llm_provider or config.LLM_PROVIDER
-            active_key = config.get_api_key(selected_provider)
-            logger.info(f"Using fallback/default provider {selected_provider}")
-        else:
-            logger.info(f"Using user-provided key for {selected_provider}")
-
-        # 4. Invoke Graph with dynamic keys
-        result = graph.invoke({
-            "topic": request.topic,
-            "urls": request.urls,
-            "tone": request.tone,
-            "style": request.style,
-            "platform": request.platform,
-            "num_posts": request.num_posts,
-            "profession": profile.get("profession") if profile else None,
-            "raw_contents": [],
-            "clean_contents": [],
-            "ranked_contents": None,
-            "final_posts": [],
-            "llm_provider": selected_provider,
-            "llm_api_key": active_key
-        })
-
-        update_job(job_id, {
-            "status": JobStatus.COMPLETED,
-            "final_posts": result.get("final_posts", [])
-        })
-
-        logger.info(f"Job {job_id} completed")
-
-    except Exception as e:
-        update_job(job_id, {
-            "status": JobStatus.FAILED,
-            "errors": [str(e)]
-        })
-        logger.error(f"Job {job_id} failed: {str(e)}")
 
 @router.post("/generate")
 def generate_async(
@@ -137,3 +70,36 @@ def update_user_profile(
     except Exception as e:
         logger.error(f"Profile update failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# --- Source Management Routes ---
+
+@router.get("/sources", response_model=List[SourceResponse])
+def list_sources(user: User = Depends(get_current_user)):
+    return get_sources(user.id)
+
+@router.post("/sources", response_model=SourceResponse)
+def add_source(request: SourceCreate, user: User = Depends(get_current_user)):
+    try:
+        return create_source(
+            user.id, 
+            request.url, 
+            request.source_type, 
+            request.poll_interval_hours
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.patch("/sources/{source_id}")
+def update_monitored_source(
+    source_id: str, 
+    request: SourceUpdate, 
+    user: User = Depends(get_current_user)
+):
+    update_data = {k: v for k, v in request.dict().items() if v is not None}
+    update_source(source_id, update_data)
+    return {"status": "success"}
+
+@router.delete("/sources/{source_id}")
+def remove_source(source_id: str, user: User = Depends(get_current_user)):
+    delete_source(source_id, user.id)
+    return {"status": "success"}
