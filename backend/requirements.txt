@@ -4,15 +4,19 @@ requests
 beautifulsoup4
 python-dotenv
 pydantic
+supabase
+youtube-transcript-api
 
-# LangGraph stack
+# LangGraph & Logic
 langgraph
 langchain-core
 langchain-community
 
-# LLMs (user provides key)
+# LLM Providers
 google-generativeai
 openai
 groq
-supabase
-youtube-transcript-api
+
+# Pro Features (Added in Phase 2 & 3)
+feedparser       # RSS Trend Aggregator
+# sentence-transformers # Optional: For local embeddings (heavy)
