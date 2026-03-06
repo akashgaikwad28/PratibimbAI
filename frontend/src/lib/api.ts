@@ -34,4 +34,17 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify(data),
     }),
+    // Sources
+    getSources: () => fetchWithAuth("/api/sources"),
+    addSource: (data: any) => fetchWithAuth("/api/sources", {
+        method: "POST",
+        body: JSON.stringify(data),
+    }),
+    updateSource: (id: string, data: any) => fetchWithAuth(`/api/sources/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+    }),
+    deleteSource: (id: string) => fetchWithAuth(`/api/sources/${id}`, {
+        method: "DELETE",
+    }),
 };
