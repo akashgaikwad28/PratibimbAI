@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, History, User, Settings, Sparkles, LogOut } from "lucide-react";
+import { Home, History, User, Settings, Sparkles, LogOut, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 
 const menuItems = [
     { icon: Home, label: "Home", href: "/" },
+    { icon: Globe, label: "Sources", href: "/sources" },
     { icon: History, label: "History", href: "/history" },
     { icon: User, label: "Profile", href: "/profile" },
     { icon: Settings, label: "Settings", href: "/settings" },
