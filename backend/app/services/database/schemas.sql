@@ -69,3 +69,26 @@ CREATE POLICY "Users can view their own jobs" ON jobs
 
 CREATE POLICY "Users can insert their own jobs" ON jobs 
     FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- 6. Monitored Sources Table
+CREATE TABLE IF NOT EXISTS monitored_sources (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+    url TEXT NOT NULL,
+    source_type TEXT DEFAULT 'website', -- 'website', 'youtube', 'rss'
+    poll_interval_hours INTEGER DEFAULT 6, -- 1 to 168 (1 week)
+    last_polled_at TIMESTAMP WITH TIME ZONE,
+    last_content_hash TEXT, -- To detect changes
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    UNIQUE(user_id, url)
+);
+
+ALTER TABLE monitored_sources ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own sources" ON monitored_sources 
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can manage their own sources" ON monitored_sources 
+    FOR ALL USING (auth.uid() = user_id);
