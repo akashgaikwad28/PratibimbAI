@@ -92,3 +92,51 @@ CREATE POLICY "Users can view their own sources" ON monitored_sources
 
 CREATE POLICY "Users can manage their own sources" ON monitored_sources 
     FOR ALL USING (auth.uid() = user_id);
+
+-- 7. Memory Embeddings Table (Phase 2)
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE IF NOT EXISTS memory_embeddings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+    job_id UUID REFERENCES jobs(id) ON DELETE SET NULL,
+    content TEXT NOT NULL,
+    platform TEXT,
+    embedding VECTOR(384), -- Standard for lightweight models (e.g. all-MiniLM-L6-v2)
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE memory_embeddings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage their own embeddings" ON memory_embeddings 
+    FOR ALL USING (auth.uid() = user_id);
+
+-- 8. Vector Search RPC Function
+CREATE OR REPLACE FUNCTION match_memory (
+  query_embedding vector(384),
+  match_threshold float,
+  match_count int,
+  p_user_id uuid
+)
+RETURNS TABLE (
+  id uuid,
+  content text,
+  platform text,
+  similarity float
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    me.id,
+    me.content,
+    me.platform,
+    1 - (me.embedding <=> query_embedding) AS similarity
+  FROM memory_embeddings me
+  WHERE me.user_id = p_user_id
+    AND 1 - (me.embedding <=> query_embedding) > match_threshold
+  ORDER BY me.embedding <=> query_embedding
+  LIMIT match_count;
+END;
+$$;
