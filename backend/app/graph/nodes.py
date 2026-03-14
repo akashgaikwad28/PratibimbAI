@@ -131,6 +131,21 @@ def write_post_node(state):
         .replace("{{num_posts}}", str(state.num_posts)) \
         .replace("{{profession}}", state.profession or "expert content creator")
 
+    # Inject Critic Feedback if this is a retry
+    if state.critic_feedback:
+        logger.info("Injecting critic feedback for retry")
+        feedback_block = f"\n\nCRITIC FEEDBACK FROM PREVIOUS DRAFT:\n{state.critic_feedback}\nPlease address this feedback to improve the post quality."
+        prompt += feedback_block
+        state.retry_count += 1
+
+    # Inject Past Memories for Style Consistency (Phase 2)
+    if state.context_memories:
+        logger.info("Injecting past memories for style matching")
+        memory_block = "\n\nPAST SUCCESSFUL POSTS (Match this voice/style):\n"
+        for i, mem in enumerate(state.context_memories):
+            memory_block += f"--- MEMORY {i+1} ---\n{mem}\n"
+        prompt = memory_block + prompt
+
     try:
         raw_response = llm.generate(prompt)
         
@@ -146,5 +161,98 @@ def write_post_node(state):
     except Exception as e:
         logger.error(f"LLM generation failed: {e}")
         state.final_posts = fallback_post(state)
+
+    return state
+
+
+@instrument_node("retrieve_memory")
+def retrieve_context_node(state: GraphState) -> GraphState:
+    """
+    Find past successful posts from this user to maintain style consistency.
+    Includes Phase 3 Deduplication check.
+    """
+    from app.jobs.store import search_memory
+    from app.services.embedding import get_embeddings
+    
+    logger.info(f"Starting retrieve_context_node for user {state.user_id}")
+    
+    if not state.user_id:
+        return state
+
+    try:
+        # Search using the TOPIC as the query
+        search_vector = get_embeddings(state.topic)
+        if not search_vector:
+            return state
+            
+        memories = search_memory(
+            user_id=state.user_id,
+            embedding=search_vector,
+            limit=3
+        )
+        
+        if memories:
+            state.context_memories = [m["content"] for m in memories]
+            logger.info(f"Retrieved {len(memories)} memory snippets")
+            
+            # Phase 3: Deduplication check
+            best_match = memories[0]
+            if best_match.get("similarity", 0) > 0.85:
+                logger.warning(f"DUPLICATE DETECTED: {best_match['similarity']:.2f} similarity.")
+                state.critic_feedback = "This topic is very similar to a past post. PLEASE REWRITE with a completely different perspective."
+            
+    except Exception as e:
+        logger.error(f"Memory retrieval failed: {e}")
+
+    return state
+
+@instrument_node("critic")
+def critic_node(state: GraphState) -> GraphState:
+    """
+    Review the generated post and provide scores/feedback.
+    """
+    logger.info("Starting critic_node")
+    
+    if not state.final_posts:
+        return state
+
+    try:
+        llm = get_llm(
+            provider=state.llm_provider,
+            api_key=state.llm_api_key
+        )
+    except Exception as e:
+        logger.warning(f"Critic LLM init failed: {e}")
+        return state
+
+    prompt_template = load_prompt("critic.txt")
+    
+    # Analyze the FIRST post for grading (primary post)
+    primary_post = state.final_posts[0]
+    
+    prompt = prompt_template \
+        .replace("{{topic}}", state.topic) \
+        .replace("{{post}}", primary_post) \
+        .replace("{{profession}}", state.profession or "expert content creator")
+
+    try:
+        import json
+        raw_response = llm.generate(prompt)
+        
+        # Extract JSON from response (handling potential markdown formatting)
+        if "```json" in raw_response:
+            json_str = raw_response.split("```json")[1].split("```")[0].strip()
+        else:
+            json_str = raw_response.strip()
+            
+        review = json.loads(json_str)
+        
+        state.scores = review.get("scores", {})
+        state.critic_feedback = review.get("feedback")
+        
+        logger.info(f"Critic Score: {review.get('overall_score')} - Feedback: {state.critic_feedback}")
+        
+    except Exception as e:
+        logger.error(f"Critic analysis failed: {e}")
 
     return state
