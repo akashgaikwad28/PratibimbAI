@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import List, Optional, Dict
+from datetime import datetime
 
 class GenerateRequest(BaseModel):
     topic: str
@@ -22,6 +23,15 @@ class UpdateProfile(BaseModel):
     gemini_api_key: Optional[str] = None
     profession: Optional[str] = None
     preferences: Optional[Dict] = None
+
+class IdeaRequest(BaseModel):
+    topic: str
+    llm_provider: Optional[str] = None
+
+class FinalizeRequest(BaseModel):
+    job_id: str
+    content: str
+    platform: str
 
 # --- Source Schemas ---
 
