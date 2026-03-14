@@ -3,6 +3,7 @@ from enum import Enum
 from uuid import uuid4
 from datetime import datetime
 from app.services.database.supabase_client import get_supabase
+from supabase import Client
 
 class JobStatus(str, Enum):
     PENDING = "pending"
@@ -66,10 +67,40 @@ def create_source(user_id: str, url: str, source_type: str = "website", poll_int
     response = supabase.table("monitored_sources").insert(data).execute()
     return response.data[0] if response.data else {}
 
-def update_source(source_id: str, data: Dict[str, Any]):
-    supabase = get_supabase()
+def update_source(source_id: str, data: Dict[str, Any], supabase: Client = None):
+    supabase = supabase or get_supabase()
     supabase.table("monitored_sources").update(data).eq("id", source_id).execute()
 
-def delete_source(source_id: str, user_id: str):
-    supabase = get_supabase()
+def delete_source(source_id: str, user_id: str, supabase: Client = None):
+    supabase = supabase or get_supabase()
     supabase.table("monitored_sources").delete().eq("id", source_id).eq("user_id", user_id).execute()
+
+def store_memory(user_id: str, content: str, platform: str, embedding: list, job_id: str = None, supabase: Client = None):
+    """
+    Save a post and its vector to the memory table.
+    """
+    supabase = supabase or get_supabase()
+    data = {
+        "user_id": user_id,
+        "content": content,
+        "platform": platform,
+        "embedding": embedding,
+        "job_id": job_id
+    }
+    return supabase.table("memory_embeddings").insert(data).execute()
+
+def search_memory(user_id: str, embedding: list, limit: int = 3, supabase: Client = None):
+    """
+    Find similar past posts using vector similarity.
+    Note: Requires an RPC function 'match_memory' in Supabase.
+    """
+    supabase = supabase or get_supabase()
+    # RPC call for vector similarity search
+    # This is the performance-optimized way to do vector search in pgvector
+    res = supabase.rpc("match_memory", {
+        "query_embedding": embedding,
+        "match_threshold": 0.5,
+        "match_count": limit,
+        "p_user_id": user_id
+    }).execute()
+    return res.data
