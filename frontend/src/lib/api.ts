@@ -24,13 +24,13 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
 }
 
 export const api = {
-    generate: (data: any) => fetchWithAuth("/generate", {
+    generate: (data: any) => fetchWithAuth("/api/generate", {
         method: "POST",
         body: JSON.stringify(data),
     }),
-    getJob: (jobId: string) => fetchWithAuth(`/job/${jobId}`),
-    getProfile: () => fetchWithAuth("/profile"),
-    updateProfile: (data: any) => fetchWithAuth("/profile", {
+    getJob: (jobId: string) => fetchWithAuth(`/api/job/${jobId}`),
+    getProfile: () => fetchWithAuth("/api/profile"),
+    updateProfile: (data: any) => fetchWithAuth("/api/profile", {
         method: "PATCH",
         body: JSON.stringify(data),
     }),
@@ -47,4 +47,14 @@ export const api = {
     deleteSource: (id: string) => fetchWithAuth(`/api/sources/${id}`, {
         method: "DELETE",
     }),
+    // Pro Features
+    getIdeas: (topic: string) => fetchWithAuth("/api/ideas", {
+        method: "POST",
+        body: JSON.stringify({ topic }),
+    }),
+    finalizeJob: (data: { job_id: string, content: string, platform: string }) => fetchWithAuth("/api/history/finalize", {
+        method: "POST",
+        body: JSON.stringify(data),
+    }),
+    getTrends: (source: string = "hacker_news") => fetchWithAuth(`/api/trends?source=${source}`),
 };
