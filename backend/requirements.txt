@@ -19,4 +19,5 @@ groq
 
 # Pro Features (Added in Phase 2 & 3)
 feedparser       # RSS Trend Aggregator
+gotrue           # Supabase Auth Type Hints
 # sentence-transformers # Optional: For local embeddings (heavy)
