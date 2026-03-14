@@ -1,0 +1,18 @@
+Act as a high-growth social media strategist.
+The user wants to post about the topic: "{{topic}}".
+
+Generate 5 distinct and viral "Angles" or "Hooks" for social media posts.
+For each angle, provide:
+1. Title: A catchy name for the idea.
+2. Hook: A strong opening line to stop the scroll.
+3. Why it works: A brief explanation of the psychological trigger (e.g., FOMO, curiosity, authority).
+
+Output your response as a valid JSON list of objects:
+[
+  {
+    "title": "The Counter-Intuitive Truth",
+    "hook": "Everything you were told about {{topic}} is wrong. Here is why...",
+    "reason": "Pattern interrupt and curiosity gap."
+  },
+  ...
+]
