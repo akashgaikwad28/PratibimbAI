@@ -23,12 +23,8 @@ def get_logger(name: str):
     console = logging.StreamHandler()
     console.setFormatter(formatter)
 
-    # File (rotates at 5MB)
-    file = RotatingFileHandler(
-        LOG_FILE,
-        maxBytes=5 * 1024 * 1024,
-        backupCount=5
-    )
+    # File (Standard handler to avoid WinError 32 on reload)
+    file = logging.FileHandler(LOG_FILE, encoding='utf-8')
     file.setFormatter(formatter)
 
     logger.addHandler(console)
