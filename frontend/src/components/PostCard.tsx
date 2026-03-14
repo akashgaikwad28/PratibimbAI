@@ -9,16 +9,40 @@ interface PostCardProps {
     content: string;
     platform: "LinkedIn" | "X/Twitter";
     index: number;
+    jobId?: string;
+    scores?: {
+        clarity: number;
+        virality: number;
+        hook: number;
+        authority: number;
+    };
 }
 
-export function PostCard({ content, platform, index }: PostCardProps) {
+export function PostCard({ content, platform, index, scores, jobId }: PostCardProps) {
     const [copied, setCopied] = useState(false);
+    const [localContent, setLocalContent] = useState(content);
     const isTwitter = platform === "X/Twitter";
 
-    const handleCopy = () => {
-        navigator.clipboard.writeText(content);
+    const avgScore = scores ? (Object.values(scores).reduce((a, b) => a + b, 0) / 4).toFixed(1) : null;
+
+    const handleCopy = async () => {
+        navigator.clipboard.writeText(localContent);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+
+        // Phase 2: Live Learning (Save edited post to memory)
+        if (jobId) {
+            try {
+                const { api } = await import("@/lib/api");
+                await api.finalizeJob({
+                    job_id: jobId,
+                    content: localContent,
+                    platform: platform
+                });
+            } catch (e) {
+                console.error("Failed to store memory", e);
+            }
+        }
     };
 
     return (
@@ -51,6 +75,12 @@ export function PostCard({ content, platform, index }: PostCardProps) {
                     </div>
 
                     <div className="flex items-center gap-2">
+                        {avgScore && (
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-brand-primary/10 rounded-xl border border-brand-primary/20">
+                                <span className="text-[10px] font-black text-brand-primary">AI SCORE</span>
+                                <span className="text-sm font-black text-brand-primary">{avgScore}</span>
+                            </div>
+                        )}
                         <button
                             onClick={handleCopy}
                             className="p-3 bg-surface-100 dark:bg-surface-900/50 hover:bg-brand-primary hover:text-white rounded-xl transition-all duration-300 text-foreground/40 active:scale-90"
@@ -61,14 +91,60 @@ export function PostCard({ content, platform, index }: PostCardProps) {
                     </div>
                 </div>
 
+                {/* Performance Metrics (Pro Layer) */}
+                {scores && (
+                    <div className="grid grid-cols-4 gap-4 py-2 px-4 bg-surface-100 dark:bg-surface-900/30 rounded-2xl border border-white/5">
+                        {[
+                            { label: "Clarity", val: scores.clarity },
+                            { label: "Hook", val: scores.hook },
+                            { label: "Authority", val: scores.authority },
+                            { label: "Virality", val: scores.virality },
+                        ].map((s) => (
+                            <div key={s.label} className="flex flex-col gap-1">
+                                <div className="flex justify-between items-end">
+                                    <span className="text-[8px] font-black uppercase tracking-wider text-foreground/30">{s.label}</span>
+                                    <span className="text-[10px] font-black text-brand-primary">{s.val}</span>
+                                </div>
+                                <div className="h-1 w-full bg-foreground/5 rounded-full overflow-hidden">
+                                    <motion.div
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${s.val * 10}%` }}
+                                        className="h-full bg-brand-primary/40 rounded-full"
+                                    />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
                 {/* Content Body */}
-                <div className={cn(
-                    "bg-surface-50 dark:bg-surface-900/30 p-6 rounded-2xl border border-foreground/5",
-                    "text-[17px] leading-relaxed whitespace-pre-wrap text-foreground/80 font-medium selection:bg-brand-primary/20",
-                    isTwitter ? "font-sans" : "font-sans leading-relaxed"
-                )}>
-                    {content}
+                <div className="relative group/edit">
+                    <textarea
+                        value={localContent}
+                        onChange={(e) => setLocalContent(e.target.value)}
+                        className={cn(
+                            "w-full bg-surface-50 dark:bg-surface-900/30 p-6 rounded-2xl border border-foreground/5",
+                            "text-[16px] leading-relaxed whitespace-pre-wrap text-foreground/80 font-medium outline-none focus:ring-2 focus:ring-brand-primary/20 transition-all resize-none min-h-[200px]",
+                            isTwitter ? "font-sans" : "font-sans leading-relaxed"
+                        )}
+                        spellCheck={false}
+                    />
+                    <div className="absolute top-2 right-2 opacity-0 group-hover/edit:opacity-100 transition-opacity pointer-events-none">
+                        <span className="text-[9px] font-black text-brand-primary bg-brand-primary/10 px-2 py-1 rounded-md border border-brand-primary/20 uppercase tracking-tighter">
+                            Editable
+                        </span>
+                    </div>
                 </div>
+
+                {copied && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-[10px] font-bold text-center text-brand-primary"
+                    >
+                        ✓ Copied to clipboard & saved to AI Memory Layer
+                    </motion.div>
+                )}
 
                 {/* Action Bar (Fake but realistic) */}
                 <div className="pt-2 flex items-center justify-between border-t border-foreground/5">

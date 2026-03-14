@@ -19,8 +19,25 @@ export default function HomePage() {
   const [generating, setGenerating] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [jobStatus, setJobStatus] = useState<string | null>(null);
-  const [posts, setPosts] = useState<string[]>([]);
+  const [posts, setPosts] = useState<{ content: string, scores?: any }[]>([]);
+  const [ideas, setIdeas] = useState<any[]>([]);
+  const [generatingIdeas, setGeneratingIdeas] = useState(false);
+  const [trendingItems, setTrendingItems] = useState<any[]>([]);
+  const [selectedTrendSource, setSelectedTrendSource] = useState("hacker_news");
+  const [fetchingTrends, setFetchingTrends] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchTrends = async () => {
+      setFetchingTrends(true);
+      try {
+        const res = await api.getTrends(selectedTrendSource);
+        setTrendingItems(res);
+      } catch (e) { }
+      setFetchingTrends(false);
+    };
+    fetchTrends();
+  }, [selectedTrendSource]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -31,7 +48,11 @@ export default function HomePage() {
           const job = await api.getJob(jobId);
           setJobStatus(job.status);
           if (job.status === "completed") {
-            setPosts(job.final_posts || []);
+            const formattedPosts = (job.final_posts || []).map((p: string) => ({
+              content: p,
+              scores: job.scores
+            }));
+            setPosts(formattedPosts);
             setGenerating(false);
             clearInterval(interval);
           } else if (job.status === "failed") {
@@ -96,6 +117,59 @@ export default function HomePage() {
         </p>
       </motion.div>
 
+      {/* Trending Discovery Section (Phase 3) */}
+      <div className="space-y-4 px-2">
+        <div className="flex items-center justify-between">
+          <h4 className="text-xs font-black uppercase tracking-[0.2em] text-foreground/40 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            Live Discovery: Trending Now
+          </h4>
+          <div className="flex gap-2">
+            {["hacker_news", "reddit_ai", "product_hunt"].map((s) => (
+              <button
+                key={s}
+                onClick={() => setSelectedTrendSource(s)}
+                className={cn(
+                  "px-3 py-1 rounded-full text-[10px] font-bold border transition-all",
+                  selectedTrendSource === s
+                    ? "bg-brand-primary text-white border-brand-primary"
+                    : "bg-surface-100 dark:bg-surface-900/50 border-white/5 text-foreground/40 hover:border-brand-primary/30"
+                )}
+              >
+                {s.split("_").join(" ").toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide no-scrollbar">
+          {fetchingTrends ? (
+            Array(3).fill(0).map((_, i) => (
+              <div key={i} className="min-w-[280px] h-[100px] bg-foreground/5 rounded-3xl animate-pulse" />
+            ))
+          ) : (
+            trendingItems.map((item: any, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.05 }}
+                onClick={() => {
+                  setTopic(item.title);
+                  setUrls(item.link);
+                }}
+                className="min-w-[300px] md:min-w-[350px] p-5 glass-panel rounded-3xl border-white/5 hover:border-brand-primary/30 cursor-pointer group hover:bg-brand-primary/[0.02] transition-all"
+              >
+                <div className="text-[10px] font-black text-brand-primary uppercase tracking-widest mb-1">{selectedTrendSource.replace("_", " ")}</div>
+                <h5 className="font-bold text-sm text-foreground/80 line-clamp-2 group-hover:text-brand-primary transition-colors leading-tight">
+                  {item.title}
+                </h5>
+              </motion.div>
+            ))
+          )}
+        </div>
+      </div>
+
       {/* Main Studio Area */}
       <motion.div
         initial={{ opacity: 0, scale: 0.98 }}
@@ -120,7 +194,49 @@ export default function HomePage() {
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
                   />
+                  <button
+                    onClick={async () => {
+                      if (!topic) return;
+                      setGeneratingIdeas(true);
+                      try {
+                        const res = await api.getIdeas(topic);
+                        setIdeas(res);
+                      } catch (e) { }
+                      setGeneratingIdeas(false);
+                    }}
+                    className="absolute bottom-4 right-4 p-3 bg-brand-primary text-white rounded-2xl hover:shadow-lg transition-all active:scale-95 disabled:opacity-50"
+                    title="Generate Ideas"
+                    disabled={generatingIdeas || !topic}
+                  >
+                    {generatingIdeas ? <Loader2 className="w-5 h-5 animate-spin" /> : <Wand2 className="w-5 h-5" />}
+                  </button>
                 </div>
+
+                {/* Ideas Display */}
+                <AnimatePresence>
+                  {ideas.length > 0 && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      className="grid grid-cols-1 gap-3 pt-2"
+                    >
+                      <div className="flex items-center justify-between px-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-brand-primary">Suggested Angles</span>
+                        <button onClick={() => setIdeas([])} className="text-[10px] font-black uppercase tracking-widest text-foreground/20 hover:text-red-500">Clear</button>
+                      </div>
+                      {ideas.map((idea: any, i) => (
+                        <div
+                          key={i}
+                          onClick={() => setTopic(`${idea.title}: ${idea.hook}`)}
+                          className="p-4 bg-brand-primary/5 border border-brand-primary/10 rounded-2xl cursor-pointer hover:bg-brand-primary/10 transition-all group"
+                        >
+                          <div className="font-bold text-sm text-brand-primary group-hover:underline">{idea.title}</div>
+                          <div className="text-xs text-foreground/50 line-clamp-1 italic">"{idea.hook}"</div>
+                        </div>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               <div className="space-y-4">
@@ -234,7 +350,7 @@ export default function HomePage() {
 
             <div className="grid gap-8">
               {posts.map((post, i) => (
-                <PostCard key={i} index={i} content={post} platform={platform} />
+                <PostCard key={i} index={i} content={post.content} scores={post.scores} platform={platform} jobId={jobId || undefined} />
               ))}
               {jobStatus === "running" && posts.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-20 animate-pulse text-foreground/20">
