@@ -9,11 +9,11 @@ def needs_fallback(state: GraphState) -> bool:
     return len(state.clean_contents) == 0
 
 def should_retry(state: GraphState) -> bool:
-    # Average score below threshold (e.g., 7.0) AND retry_count < 1
+    # Average score below threshold (e.g., 7.0) AND retry_count < 2
     scores = state.scores.values()
     avg_score = sum(scores) / len(scores) if scores else 0
     
-    do_retry = avg_score < 7.0 and state.retry_count < 1
+    do_retry = avg_score < 7.0 and state.retry_count < 2
     if do_retry:
         print(f"--- LOOPING BACK: Score {avg_score:.1f} is too low ---")
     return do_retry
