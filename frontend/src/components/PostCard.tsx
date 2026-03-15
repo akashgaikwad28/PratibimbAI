@@ -1,6 +1,6 @@
 "use client";
 
-import { Linkedin, Twitter, Copy, Check, Share2, Heart, MessageCircle, Repeat2, Bookmark } from "lucide-react";
+import { Linkedin, Twitter, Copy, Check, Download, Heart, MessageCircle, Repeat2, Bookmark } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -10,20 +10,23 @@ interface PostCardProps {
     platform: "LinkedIn" | "X/Twitter";
     index: number;
     jobId?: string;
-    scores?: {
-        clarity: number;
-        virality: number;
-        hook: number;
-        authority: number;
-    };
+    criticFeedback?: string;
 }
 
-export function PostCard({ content, platform, index, scores, jobId }: PostCardProps) {
+export function PostCard({ content, platform, index, criticFeedback, jobId }: PostCardProps) {
     const [copied, setCopied] = useState(false);
     const [localContent, setLocalContent] = useState(content);
     const isTwitter = platform === "X/Twitter";
 
-    const avgScore = scores ? (Object.values(scores).reduce((a, b) => a + b, 0) / 4).toFixed(1) : null;
+    const handleDownload = () => {
+        const element = document.createElement("a");
+        const file = new Blob([localContent], {type: 'text/plain'});
+        element.href = URL.createObjectURL(file);
+        element.download = `pratibimbai-post-${index + 1}.txt`;
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
+    };
 
     const handleCopy = async () => {
         navigator.clipboard.writeText(localContent);
@@ -75,47 +78,24 @@ export function PostCard({ content, platform, index, scores, jobId }: PostCardPr
                     </div>
 
                     <div className="flex items-center gap-2">
-                        {avgScore && (
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-brand-primary/10 rounded-xl border border-brand-primary/20">
-                                <span className="text-[10px] font-black text-brand-primary">AI SCORE</span>
-                                <span className="text-sm font-black text-brand-primary">{avgScore}</span>
-                            </div>
-                        )}
+                        <button
+                            onClick={handleDownload}
+                            className="p-3 bg-surface-100 dark:bg-surface-900/50 hover:bg-brand-primary hover:text-white rounded-xl transition-all duration-300 text-foreground/40 active:scale-90"
+                            title="Download Content"
+                        >
+                            <Download className="w-5 h-5" />
+                        </button>
                         <button
                             onClick={handleCopy}
-                            className="p-3 bg-surface-100 dark:bg-surface-900/50 hover:bg-brand-primary hover:text-white rounded-xl transition-all duration-300 text-foreground/40 active:scale-90"
+                            className="px-4 py-2.5 bg-brand-primary text-white hover:opacity-90 rounded-xl transition-all duration-300 active:scale-90 flex items-center gap-2 font-bold text-sm"
                             title="Copy Content"
                         >
-                            {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+                            {copied ? <><Check className="w-4 h-4" /> Copied</> : <><Copy className="w-4 h-4" /> Copy</>}
                         </button>
                     </div>
                 </div>
 
-                {/* Performance Metrics (Pro Layer) */}
-                {scores && (
-                    <div className="grid grid-cols-4 gap-4 py-2 px-4 bg-surface-100 dark:bg-surface-900/30 rounded-2xl border border-white/5">
-                        {[
-                            { label: "Clarity", val: scores.clarity },
-                            { label: "Hook", val: scores.hook },
-                            { label: "Authority", val: scores.authority },
-                            { label: "Virality", val: scores.virality },
-                        ].map((s) => (
-                            <div key={s.label} className="flex flex-col gap-1">
-                                <div className="flex justify-between items-end">
-                                    <span className="text-[8px] font-black uppercase tracking-wider text-foreground/30">{s.label}</span>
-                                    <span className="text-[10px] font-black text-brand-primary">{s.val}</span>
-                                </div>
-                                <div className="h-1 w-full bg-foreground/5 rounded-full overflow-hidden">
-                                    <motion.div
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${s.val * 10}%` }}
-                                        className="h-full bg-brand-primary/40 rounded-full"
-                                    />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                {/* Performance metrics removed in favor of simpler text feedback */}
 
                 {/* Content Body */}
                 <div className="relative group/edit">
@@ -135,6 +115,17 @@ export function PostCard({ content, platform, index, scores, jobId }: PostCardPr
                         </span>
                     </div>
                 </div>
+
+                {criticFeedback && (
+                    <div className="p-4 bg-brand-primary/10 border border-brand-primary/20 rounded-xl">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-brand-primary flex items-center gap-1.5 mb-1.5">
+                            <span className="animate-pulse">✨</span> AI Suggestion
+                        </div>
+                        <div className="text-sm font-medium text-foreground/80 leading-relaxed">
+                            {criticFeedback}
+                        </div>
+                    </div>
+                )}
 
                 {copied && (
                     <motion.div

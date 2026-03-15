@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Save, Shield, User, Key, CheckCircle2, AlertCircle } from "lucide-react";
+import { Save, Shield, User, Key, CheckCircle2, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -9,6 +9,7 @@ export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+    const [showAdvanced, setShowAdvanced] = useState(false);
 
     const [profile, setProfile] = useState({
         full_name: "",
@@ -100,13 +101,20 @@ export default function SettingsPage() {
                 </section>
 
                 {/* API Security Section */}
-                <section className="glass-card p-6 rounded-2xl space-y-6">
-                    <div className="flex items-center gap-2 text-lg font-semibold border-b pb-4">
-                        <Shield className="w-5 h-5 text-brand-primary" />
-                        <h3>LLM Configurations</h3>
-                    </div>
+                <section className="glass-card p-6 rounded-2xl space-y-2">
+                    <button 
+                        onClick={() => setShowAdvanced(!showAdvanced)}
+                        className="w-full flex items-center justify-between text-lg font-semibold pb-2 hover:opacity-80 transition-opacity"
+                    >
+                        <div className="flex items-center gap-2">
+                            <Shield className="w-5 h-5 text-brand-primary" />
+                            <h3>Advanced Settings (LLM Keys)</h3>
+                        </div>
+                        {showAdvanced ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                    </button>
 
-                    <div className="grid gap-6 max-w-lg">
+                    {showAdvanced && (
+                        <div className="grid gap-6 max-w-lg pt-4 animate-in slide-in-from-top-2 duration-300 border-t border-white/5">
                         <div className="space-y-2 text-sm text-foreground/60 bg-brand-primary/5 p-4 rounded-xl border border-brand-primary/10">
                             <p>We use a priority system: <strong>Groq &gt; Gemini &gt; OpenAI</strong>. Your keys are used only for your own generations.</p>
                         </div>
@@ -154,7 +162,8 @@ export default function SettingsPage() {
                                 />
                             </div>
                         </div>
-                    </div>
+                        </div>
+                    )}
                 </section>
 
                 <div className="flex items-center gap-4">

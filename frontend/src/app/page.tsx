@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Sparkles, Link as LinkIcon, Send, Twitter, Linkedin, MessageSquare, Loader2, Wand2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -12,15 +12,23 @@ const platformOptions = [
   { id: "X/Twitter", icon: Twitter, color: "text-[#1DA1F2]", desc: "Micro-blogging" },
 ];
 
+const TEMPLATES = ["Viral Thread", "Deep Insight", "Quick Take", "Data Breakdown"];
+const STYLES = ["Professional", "Technical", "Storytelling", "Contrarian", "Minimalist"];
+
 export default function HomePage() {
+  const resultsRef = useRef<HTMLDivElement>(null);
   const [topic, setTopic] = useState("");
   const [urls, setUrls] = useState("");
   const [platform, setPlatform] = useState<any>("LinkedIn");
   const [generating, setGenerating] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [jobStatus, setJobStatus] = useState<string | null>(null);
-  const [posts, setPosts] = useState<{ content: string, scores?: any }[]>([]);
+  const [posts, setPosts] = useState<{ content: string, criticFeedback?: string }[]>([]);
   const [ideas, setIdeas] = useState<any[]>([]);
+  const [hooks, setHooks] = useState<string[]>([]);
+  const [generatingHooks, setGeneratingHooks] = useState(false);
+  const [template, setTemplate] = useState("Viral Thread");
+  const [style, setStyle] = useState("Professional");
   const [generatingIdeas, setGeneratingIdeas] = useState(false);
   const [trendingItems, setTrendingItems] = useState<any[]>([]);
   const [selectedTrendSource, setSelectedTrendSource] = useState("hacker_news");
@@ -40,6 +48,14 @@ export default function HomePage() {
   }, [selectedTrendSource]);
 
   useEffect(() => {
+    if (posts.length > 0 || jobStatus === "running") {
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, [posts.length, jobStatus]);
+
+  useEffect(() => {
     let interval: NodeJS.Timeout;
 
     if (jobId && jobStatus !== "completed" && jobStatus !== "failed") {
@@ -50,7 +66,7 @@ export default function HomePage() {
           if (job.status === "completed") {
             const formattedPosts = (job.final_posts || []).map((p: string) => ({
               content: p,
-              scores: job.scores
+              criticFeedback: job.critic_feedback
             }));
             setPosts(formattedPosts);
             setGenerating(false);
@@ -82,8 +98,8 @@ export default function HomePage() {
         topic,
         urls: urls.split(",").map(u => u.trim()).filter(Boolean),
         platform,
-        tone: "Professional",
-        style: "Concise",
+        tone: style,
+        style: template,
         num_posts: 3
       });
       setJobId(response.job_id);
@@ -119,7 +135,7 @@ export default function HomePage() {
 
       {/* Trending Discovery Section (Phase 3) */}
       <div className="space-y-4 px-2">
-        <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
           <h4 className="text-xs font-black uppercase tracking-[0.2em] text-foreground/40 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
             Live Discovery: Trending Now
@@ -190,26 +206,44 @@ export default function HomePage() {
                   <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-brand-accent rounded-3xl blur opacity-0 group-focus-within:opacity-20 transition duration-500" />
                   <textarea
                     placeholder="e.g. The impact of Llama 3 on open-source AI..."
-                    className="relative w-full bg-surface-100 dark:bg-surface-900/80 border-none rounded-3xl px-6 py-5 min-h-[160px] focus:ring-2 focus:ring-brand-primary/50 outline-none transition-all placeholder:text-foreground/20 text-lg font-medium leading-relaxed"
+                    className="relative w-full bg-surface-100 dark:bg-surface-900/80 border-none rounded-3xl px-6 pt-5 pb-20 min-h-[160px] focus:ring-2 focus:ring-brand-primary/50 outline-none transition-all placeholder:text-foreground/20 text-lg font-medium leading-relaxed"
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
                   />
-                  <button
-                    onClick={async () => {
-                      if (!topic) return;
-                      setGeneratingIdeas(true);
-                      try {
-                        const res = await api.getIdeas(topic);
-                        setIdeas(res);
-                      } catch (e) { }
-                      setGeneratingIdeas(false);
-                    }}
-                    className="absolute bottom-4 right-4 p-3 bg-brand-primary text-white rounded-2xl hover:shadow-lg transition-all active:scale-95 disabled:opacity-50"
-                    title="Generate Ideas"
-                    disabled={generatingIdeas || !topic}
-                  >
-                    {generatingIdeas ? <Loader2 className="w-5 h-5 animate-spin" /> : <Wand2 className="w-5 h-5" />}
-                  </button>
+                  <div className="absolute bottom-4 right-4 flex gap-2">
+                    <button
+                      onClick={async () => {
+                        if (!topic) return;
+                        setGeneratingHooks(true);
+                        try {
+                          const res = await api.getHooks(topic);
+                          setHooks(res);
+                        } catch (e) { }
+                        setGeneratingHooks(false);
+                      }}
+                      className="p-3 bg-brand-primary/10 text-brand-primary rounded-2xl hover:bg-brand-primary hover:text-white transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2"
+                      title="Generate Hooks"
+                      disabled={generatingHooks || !topic}
+                    >
+                      {generatingHooks ? <Loader2 className="w-5 h-5 animate-spin" /> : <span className="text-xs font-black uppercase tracking-widest px-1">Hooks</span>}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!topic) return;
+                        setGeneratingIdeas(true);
+                        try {
+                          const res = await api.getIdeas(topic);
+                          setIdeas(res);
+                        } catch (e) { }
+                        setGeneratingIdeas(false);
+                      }}
+                      className="p-3 bg-brand-primary text-white rounded-2xl hover:shadow-lg transition-all active:scale-95 disabled:opacity-50"
+                      title="Generate Ideas"
+                      disabled={generatingIdeas || !topic}
+                    >
+                      {generatingIdeas ? <Loader2 className="w-5 h-5 animate-spin" /> : <Wand2 className="w-5 h-5" />}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Ideas Display */}
@@ -232,6 +266,31 @@ export default function HomePage() {
                         >
                           <div className="font-bold text-sm text-brand-primary group-hover:underline">{idea.title}</div>
                           <div className="text-xs text-foreground/50 line-clamp-1 italic">"{idea.hook}"</div>
+                        </div>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Hooks Display */}
+                <AnimatePresence>
+                  {hooks.length > 0 && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      className="grid grid-cols-1 gap-2 pt-2"
+                    >
+                      <div className="flex items-center justify-between px-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[#1DA1F2]">Viral Hooks</span>
+                        <button onClick={() => setHooks([])} className="text-[10px] font-black uppercase tracking-widest text-foreground/20 hover:text-red-500">Clear</button>
+                      </div>
+                      {hooks.map((hook, i) => (
+                        <div
+                          key={i}
+                          onClick={() => setTopic((prev) => prev ? `${hook}\n\n${prev}` : hook)}
+                          className="p-3 bg-[#1DA1F2]/5 border border-[#1DA1F2]/20 rounded-xl cursor-pointer hover:bg-[#1DA1F2]/10 transition-all group"
+                        >
+                          <div className="text-sm font-bold text-foreground/80 group-hover:text-[#1DA1F2] transition-colors">"{hook}"</div>
                         </div>
                       ))}
                     </motion.div>
@@ -267,7 +326,7 @@ export default function HomePage() {
                   <span className="w-8 h-8 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary">3</span>
                   Target Network
                 </label>
-                <div className="flex flex-col gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   {platformOptions.map((opt) => (
                     <button
                       key={opt.id}
@@ -294,7 +353,36 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div className="pt-4">
+              <div className="space-y-4 pt-4 border-t border-white/5">
+                <label className="text-sm font-bold flex items-center gap-2 ml-1">
+                  <span className="w-8 h-8 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary">4</span>
+                  Post Format
+                </label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-black uppercase tracking-widest text-foreground/40 px-1">Template</label>
+                    <select
+                      value={template}
+                      onChange={(e) => setTemplate(e.target.value)}
+                      className="w-full bg-surface-100 dark:bg-surface-900/80 border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-brand-primary/50 outline-none text-sm font-bold cursor-pointer"
+                    >
+                      {TEMPLATES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-black uppercase tracking-widest text-foreground/40 px-1">Writer Tone</label>
+                    <select
+                      value={style}
+                      onChange={(e) => setStyle(e.target.value)}
+                      className="w-full bg-surface-100 dark:bg-surface-900/80 border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-brand-primary/50 outline-none text-sm font-bold cursor-pointer"
+                    >
+                      {STYLES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-6">
                 <button
                   onClick={handleGenerate}
                   disabled={generating || !topic}
@@ -330,6 +418,7 @@ export default function HomePage() {
       </motion.div>
 
       {/* Results Section */}
+      <div ref={resultsRef} className="scroll-mt-6" />
       <AnimatePresence>
         {(posts.length > 0 || jobStatus === "running") && (
           <motion.div
@@ -350,7 +439,7 @@ export default function HomePage() {
 
             <div className="grid gap-8">
               {posts.map((post, i) => (
-                <PostCard key={i} index={i} content={post.content} scores={post.scores} platform={platform} jobId={jobId || undefined} />
+                <PostCard key={i} index={i} content={post.content} criticFeedback={post.criticFeedback} platform={platform} jobId={jobId || undefined} />
               ))}
               {jobStatus === "running" && posts.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-20 animate-pulse text-foreground/20">
