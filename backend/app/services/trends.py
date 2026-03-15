@@ -7,7 +7,6 @@ logger = get_logger("trend_service")
 # Popular technical/AI feeds
 FEEDS = {
     "hacker_news": "https://news.ycombinator.com/rss",
-    "reddit_ai": "https://www.reddit.com/r/ArtificialInteligence/.rss",
     "product_hunt": "https://www.producthunt.com/feed"
 }
 
