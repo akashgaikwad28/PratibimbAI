@@ -48,6 +48,10 @@ export const api = {
         method: "DELETE",
     }),
     // Pro Features
+    getHooks: (topic: string) => fetchWithAuth("/api/hooks", {
+        method: "POST",
+        body: JSON.stringify({ topic }),
+    }),
     getIdeas: (topic: string) => fetchWithAuth("/api/ideas", {
         method: "POST",
         body: JSON.stringify({ topic }),
