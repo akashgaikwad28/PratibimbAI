@@ -136,7 +136,6 @@ def write_post_node(state):
         logger.info("Injecting critic feedback for retry")
         feedback_block = f"\n\nCRITIC FEEDBACK FROM PREVIOUS DRAFT:\n{state.critic_feedback}\nPlease address this feedback to improve the post quality."
         prompt += feedback_block
-        state.retry_count += 1
 
     # Inject Past Memories for Style Consistency (Phase 2)
     if state.context_memories:
@@ -212,6 +211,9 @@ def critic_node(state: GraphState) -> GraphState:
     Review the generated post and provide scores/feedback.
     """
     logger.info("Starting critic_node")
+    
+    # ALWAYS increment retry count here to prevent infinite recursion
+    state.retry_count += 1
     
     if not state.final_posts:
         return state
