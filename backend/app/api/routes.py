@@ -136,6 +136,31 @@ def get_content_ideas(request: IdeaRequest, user: User = Depends(get_current_use
         logger.error(f"Idea generation failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/hooks")
+def get_content_hooks(request: IdeaRequest, user: User = Depends(get_current_user)):
+    try:
+        profile = get_profile(user.id)
+        selected_provider = request.llm_provider or (profile.get("groq_api_key") and "groq") or config.LLM_PROVIDER
+        active_key = profile.get(f"{selected_provider}_api_key") or config.get_api_key(selected_provider)
+        
+        llm = get_llm(selected_provider, active_key)
+        prompt_template = load_prompt("hook_gen.txt")
+        prompt = prompt_template.replace("{{topic}}", request.topic)
+        
+        response = llm.generate(prompt)
+        
+        # Parse JSON
+        import json
+        if "```json" in response:
+            json_str = response.split("```json")[1].split("```")[0].strip()
+        else:
+            json_str = response.strip()
+            
+        return json.loads(json_str)
+    except Exception as e:
+        logger.error(f"Hook generation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/history/finalize")
 def finalize_job(request: FinalizeRequest, user: User = Depends(get_current_user)):
     """
