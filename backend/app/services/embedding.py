@@ -7,7 +7,7 @@ logger = get_logger("embedding_service")
 
 # Note: Using a lightweight, free model from HuggingFace
 # Dimensions: 384
-HF_MODEL_URL = "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
+HF_MODEL_URL = "https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2"
 
 def get_embeddings(text: str) -> List[float]:
     """
