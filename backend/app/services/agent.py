@@ -63,7 +63,8 @@ def run_agent(job_id: str, request: GenerateRequest):
 
         update_job(job_id, {
             "status": JobStatus.COMPLETED,
-            "final_posts": result.get("final_posts", [])
+            "final_posts": result.get("final_posts", []),
+            "critic_feedback": result.get("critic_feedback", "")
         })
 
         logger.info(f"Job {job_id} completed")

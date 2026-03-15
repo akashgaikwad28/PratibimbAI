@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     platform TEXT,
     num_posts INTEGER,
     final_posts JSONB,
+    critic_feedback TEXT, -- Added for Phase 4 text feedback
     errors JSONB DEFAULT '[]'::jsonb,
     llm_provider TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
