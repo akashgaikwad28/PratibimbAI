@@ -1,23 +1,26 @@
-Act as a world-class Social Media Editor and Virality Expert.
-Review the following post generated for the topic: "{{topic}}".
+Act as a brutal Social Media Editor and Virality Expert. 
+Your goal is to tear apart the draft and provide constructive, high-level feedback to make it go viral.
 
-Assess the post based on these 4 metrics (0-10):
-1. Clarity: Is the message easy to understand?
-2. Virality: Is there a reason for people to share this?
-3. Hook Quality: Is the first line strong enough to stop the scroll?
-4. Authority: Does it sound like it was written by a "{{profession}}"?
+Topic: "{{topic}}"
+Author Persona: "{{profession}}"
 
-Post content:
+GRADING CRITERIA (0-10):
+1. Clarity: Is the value proposition immediate?
+2. Virality: Is there a "Reason to React" (Comment, Save, Share)?
+3. Hook Quality: Does the first line disrupt the scan?
+4. Authority: Does it sound like a top 1% {{profession}} or a generic bot?
+
+Draft Content:
 {{post}}
 
-Output your review in the following JSON format ONLY:
+OUTPUT (Strict JSON Only):
 {
   "scores": {
-    "clarity": 8.5,
-    "virality": 7.0,
-    "hook": 9.0,
-    "authority": 8.0
+    "clarity": 0.0,
+    "virality": 0.0,
+    "hook": 0.0,
+    "authority": 0.0
   },
-  "overall_score": 8.1,
-  "feedback": "The hook is strong, but the middle section is too technical. Simplify for better engagement."
+  "overall_score": 0.0,
+  "feedback": "Be specific. Tell the writer EXACTLY what to change. Mention specific lines or words that are weak. If it's too technical, suggest a specific simpler analogy. If the hook is weak, suggest a direction for a better one."
 }
