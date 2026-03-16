@@ -10,6 +10,7 @@ from app.services.llm.factory import get_llm
 from app.services.ranker import heuristic_rank, rank_with_llm, LLMError
 from app.utils.prompt_loader import load_prompt
 import time
+import json
 
 logger = get_logger(__name__)
 
@@ -19,7 +20,7 @@ def fallback_post(state):
 
 
 @instrument_node("collect")
-def collect_node(state: GraphState) -> GraphState:
+def collect_node(state: GraphState):
     """
     Fetch raw HTML/text from all URLs
     """
@@ -39,13 +40,11 @@ def collect_node(state: GraphState) -> GraphState:
             state.errors.append(error_msg)
             logger.error(f"[{state.execution_id}] {error_msg}")
 
-    state.raw_contents = raw_contents
-    logger.info("Finished collect_node")
-    return state
+    return {"raw_contents": raw_contents, "errors": state.errors}
 
 
 @instrument_node("clean")
-def clean_node(state: GraphState) -> GraphState:
+def clean_node(state: GraphState):
     """
     Clean HTML into readable text
     """
@@ -67,12 +66,11 @@ def clean_node(state: GraphState) -> GraphState:
             state.errors.append(error_msg)
             logger.error(f"[{state.execution_id}] {error_msg}")
 
-    state.clean_contents = cleaned_contents
-    return state
+    return {"clean_contents": cleaned_contents, "errors": state.errors}
 
 
 @instrument_node("rank")
-def rank_node(state):
+def rank_node(state: GraphState):
     logger.info("Starting rank_node")
     start = time.time()
 
@@ -86,7 +84,7 @@ def rank_node(state):
         method = "LLM"
 
     except LLMError as e:
-        print(f"LLM failed, fallback used: {e}")
+        logger.warning(f"LLM ranking failed, fallback used: {e}")
         ranked = heuristic_rank(
             state.clean_contents,
             state.topic
@@ -94,19 +92,20 @@ def rank_node(state):
         method = "heuristic"
 
     duration = round(time.time() - start, 2)
-    print(f"Finished rank_node using {method} in {duration}s")
+    logger.info(f"Finished rank_node using {method} in {duration}s")
 
     return {
         "ranked_contents": ranked
     }
 
+
 @instrument_node("write")
-def write_post_node(state):
-    logger.info("Starting write_post_node")
+def write_post_node(state: GraphState):
+    logger.info(f"Write post state.ranked_contents: {bool(state.ranked_contents)}")
 
     if not state.ranked_contents:
-        state.final_posts = fallback_post(state)
-        return state
+        logger.warning("No ranked contents found in write_post_node! Falling back.")
+        return {"final_posts": fallback_post(state)}
 
     try:
         llm = get_llm(
@@ -115,8 +114,7 @@ def write_post_node(state):
         )
     except Exception as e:
         logger.warning(f"LLM init failed: {e}")
-        state.final_posts = fallback_post(state)
-        return state
+        return {"final_posts": fallback_post(state)}
 
     prompt_template = load_prompt("content_gen.txt")
 
@@ -155,20 +153,20 @@ def write_post_node(state):
         # Clean up parts (strip whitespace and filter empty)
         posts = [p.strip() for p in parts if p.strip()]
         
-        state.final_posts = posts
-        logger.info(f"Generated {len(posts)} posts successfully")
+        if not posts:
+            logger.warning("LLM generated empty results")
+            return {"final_posts": fallback_post(state)}
+            
+        return {"final_posts": posts}
     except Exception as e:
         logger.error(f"LLM generation failed: {e}")
-        state.final_posts = fallback_post(state)
-
-    return state
+        return {"final_posts": fallback_post(state)}
 
 
 @instrument_node("retrieve_memory")
-def retrieve_context_node(state: GraphState) -> GraphState:
+def retrieve_context_node(state: GraphState):
     """
     Find past successful posts from this user to maintain style consistency.
-    Includes Phase 3 Deduplication check.
     """
     from app.jobs.store import search_memory
     from app.services.embedding import get_embeddings
@@ -176,13 +174,12 @@ def retrieve_context_node(state: GraphState) -> GraphState:
     logger.info(f"Starting retrieve_context_node for user {state.user_id}")
     
     if not state.user_id:
-        return state
+        return {}
 
     try:
-        # Search using the TOPIC as the query
         search_vector = get_embeddings(state.topic)
         if not search_vector:
-            return state
+            return {}
             
         memories = search_memory(
             user_id=state.user_id,
@@ -191,32 +188,35 @@ def retrieve_context_node(state: GraphState) -> GraphState:
         )
         
         if memories:
-            state.context_memories = [m["content"] for m in memories]
             logger.info(f"Retrieved {len(memories)} memory snippets")
+            context_memories = [m["content"] for m in memories]
             
             # Phase 3: Deduplication check
             best_match = memories[0]
             if best_match.get("similarity", 0) > 0.85:
                 logger.warning(f"DUPLICATE DETECTED: {best_match['similarity']:.2f} similarity.")
-                state.critic_feedback = "This topic is very similar to a past post. PLEASE REWRITE with a completely different perspective."
+                return {
+                    "context_memories": context_memories,
+                    "critic_feedback": "This topic is very similar to a past post. PLEASE REWRITE with a completely different perspective."
+                }
+            
+            return {"context_memories": context_memories}
             
     except Exception as e:
         logger.error(f"Memory retrieval failed: {e}")
 
-    return state
+    return {}
+
 
 @instrument_node("critic")
-def critic_node(state: GraphState) -> GraphState:
+def critic_node(state: GraphState):
     """
     Review the generated post and provide scores/feedback.
     """
     logger.info("Starting critic_node")
     
-    # ALWAYS increment retry count here to prevent infinite recursion
-    state.retry_count += 1
-    
     if not state.final_posts:
-        return state
+        return {"retry_count": state.retry_count + 1}
 
     try:
         llm = get_llm(
@@ -225,11 +225,11 @@ def critic_node(state: GraphState) -> GraphState:
         )
     except Exception as e:
         logger.warning(f"Critic LLM init failed: {e}")
-        return state
+        return {"retry_count": state.retry_count + 1}
 
     prompt_template = load_prompt("critic.txt")
     
-    # Analyze the FIRST post for grading (primary post)
+    # Analyze the FIRST post for grading
     primary_post = state.final_posts[0]
     
     prompt = prompt_template \
@@ -238,23 +238,31 @@ def critic_node(state: GraphState) -> GraphState:
         .replace("{{profession}}", state.profession or "expert content creator")
 
     try:
-        import json
         raw_response = llm.generate(prompt)
         
-        # Extract JSON from response (handling potential markdown formatting)
+        # Extract JSON from response
         if "```json" in raw_response:
             json_str = raw_response.split("```json")[1].split("```")[0].strip()
         else:
             json_str = raw_response.strip()
             
-        review = json.loads(json_str)
+        result = json.loads(json_str) 
         
-        state.scores = review.get("scores", {})
-        state.critic_feedback = review.get("feedback")
+        scores = result.get("scores", {})
+        feedback = result.get("feedback", "No specific feedback provided.")
+        overall_score = result.get("overall_score", 0)
         
-        logger.info(f"Critic Score: {review.get('overall_score')} - Feedback: {state.critic_feedback}")
+        logger.info(f"Critic Score: {overall_score} - Feedback: {feedback}")
         
+        return {
+            "scores": scores,
+            "critic_feedback": feedback,
+            "retry_count": state.retry_count + 1
+        }
     except Exception as e:
         logger.error(f"Critic analysis failed: {e}")
-
-    return state
+        return {
+            "scores": {"clarity": 0}, 
+            "critic_feedback": f"Analysis error: {e}", 
+            "retry_count": state.retry_count + 1
+        }
