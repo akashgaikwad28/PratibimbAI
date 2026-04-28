@@ -1,0 +1,3 @@
+Rank these based on relevance to '{{topic}}'. Return ONLY a python list of indices like [0, 2].
+
+{{contents}}

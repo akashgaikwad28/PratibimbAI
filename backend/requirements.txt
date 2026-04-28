@@ -1,23 +1,29 @@
 fastapi
-uvicorn
-requests
+uvicorn[standard]
+httpx
 beautifulsoup4
 python-dotenv
 pydantic
+pydantic-settings
 supabase
 youtube-transcript-api
+cryptography
 
-# LangGraph & Logic
 langgraph
 langchain-core
 langchain-community
 
-# LLM Providers
 google-generativeai
 openai
 groq
 
-# Pro Features (Added in Phase 2 & 3)
-feedparser       # RSS Trend Aggregator
-gotrue           # Supabase Auth Type Hints
-# sentence-transformers # Optional: For local embeddings (heavy)
+feedparser
+gotrue
+
+pytest
+pytest-asyncio
+
+# Production Scaling & Scraping
+playwright
+redis
+rq

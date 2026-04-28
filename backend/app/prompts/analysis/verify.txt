@@ -1,0 +1,5 @@
+CRITIC FEEDBACK: {{critic_feedback}}
+NEW POST: {{post}}
+
+Does the NEW POST address the feedback? 
+Answer with 'YES' or 'NO' and a brief reason.

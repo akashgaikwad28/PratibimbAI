@@ -177,30 +177,38 @@ def retrieve_context_node(state: GraphState):
         return {}
 
     try:
-        search_vector = get_embeddings(state.topic)
-        if not search_vector:
-            return {}
-            
-        memories = search_memory(
-            user_id=state.user_id,
-            embedding=search_vector,
-            limit=3
-        )
+        from app.jobs.store import get_style_samples
         
-        if memories:
-            logger.info(f"Retrieved {len(memories)} memory snippets")
-            context_memories = [m["content"] for m in memories]
+        # 1. Fetch High-Priority Style Samples
+        samples = get_style_samples(state.user_id)
+        context_memories = [f"[PRIMARY STYLE REFERENCE] {s['content']}" for s in samples[:2]]
+        
+        # 2. Fetch Topic-Relevant Memories (RAG)
+        search_vector = get_embeddings(state.topic)
+        if search_vector:
+            memories = search_memory(
+                user_id=state.user_id,
+                embedding=search_vector,
+                limit=3
+            )
             
-            # Phase 3: Deduplication check
-            best_match = memories[0]
-            if best_match.get("similarity", 0) > 0.85:
-                logger.warning(f"DUPLICATE DETECTED: {best_match['similarity']:.2f} similarity.")
-                return {
-                    "context_memories": context_memories,
-                    "critic_feedback": "This topic is very similar to a past post. PLEASE REWRITE with a completely different perspective."
-                }
-            
-            return {"context_memories": context_memories}
+            if memories:
+                logger.info(f"Retrieved {len(memories)} memory snippets")
+                # Add topic memories (excluding ones that might be style samples already)
+                for m in memories:
+                    if m["content"] not in [s["content"] for s in samples]:
+                        context_memories.append(m["content"])
+                
+                # Phase 3: Deduplication check
+                best_match = memories[0]
+                if best_match.get("similarity", 0) > 0.85:
+                    logger.warning(f"DUPLICATE DETECTED: {best_match['similarity']:.2f} similarity.")
+                    return {
+                        "context_memories": context_memories[:5], # Keep it concise
+                        "critic_feedback": "This topic is very similar to a past post. PLEASE REWRITE with a completely different perspective."
+                    }
+        
+        return {"context_memories": context_memories[:5]}
             
     except Exception as e:
         logger.error(f"Memory retrieval failed: {e}")

@@ -11,32 +11,32 @@ export default function SettingsPage() {
     const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
     const [showAdvanced, setShowAdvanced] = useState(false);
 
-    const [profile, setProfile] = useState({
-        full_name: "",
-        profession: "",
-        openai_api_key: "",
-        groq_api_key: "",
-        gemini_api_key: "",
-    });
+    const [samples, setSamples] = useState<any[]>([]);
+    const [newSample, setNewSample] = useState("");
+    const [addingSample, setAddingSample] = useState(false);
 
     useEffect(() => {
-        async function loadProfile() {
+        async function loadData() {
             try {
-                const data = await api.getProfile();
+                const [profileData, samplesData] = await Promise.all([
+                    api.getProfile(),
+                    api.getStyleSamples()
+                ]);
                 setProfile({
-                    full_name: data.full_name || "",
-                    profession: data.profession || "",
-                    openai_api_key: data.openai_api_key || "",
-                    groq_api_key: data.groq_api_key || "",
-                    gemini_api_key: data.gemini_api_key || "",
+                    full_name: profileData.full_name || "",
+                    profession: profileData.profession || "",
+                    openai_api_key: profileData.openai_api_key || "",
+                    groq_api_key: profileData.groq_api_key || "",
+                    gemini_api_key: profileData.gemini_api_key || "",
                 });
+                setSamples(samplesData);
             } catch (err) {
-                console.error("Failed to load profile", err);
+                console.error("Failed to load data", err);
             } finally {
                 setLoading(false);
             }
         }
-        loadProfile();
+        loadData();
     }, []);
 
     const handleSave = async () => {
@@ -49,6 +49,29 @@ export default function SettingsPage() {
             setMessage({ type: "error", text: "Failed to update profile. Please try again." });
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleAddSample = async () => {
+        if (!newSample.trim()) return;
+        setAddingSample(true);
+        try {
+            const sample = await api.addStyleSample(newSample);
+            setSamples([sample, ...samples]);
+            setNewSample("");
+        } catch (err) {
+            console.error("Failed to add sample", err);
+        } finally {
+            setAddingSample(false);
+        }
+    };
+
+    const handleDeleteSample = async (id: string) => {
+        try {
+            await api.deleteStyleSample(id);
+            setSamples(samples.filter(s => s.id !== id));
+        } catch (err) {
+            console.error("Failed to delete sample", err);
         }
     };
 
@@ -97,6 +120,53 @@ export default function SettingsPage() {
                             />
                             <p className="text-xs text-foreground/40">This helps the AI write content that matches your expertise.</p>
                         </div>
+                    </div>
+                </section>
+
+                {/* Ghostwriter Vault */}
+                <section className="glass-card p-6 rounded-2xl space-y-6">
+                    <div className="flex items-center gap-2 text-lg font-semibold border-b pb-4">
+                        <Shield className="w-5 h-5 text-brand-primary" />
+                        <h3>Ghostwriter Vault</h3>
+                    </div>
+
+                    <div className="space-y-4">
+                        <p className="text-sm text-foreground/60">
+                            Add samples of your past posts. Our AI will analyze your unique voice, tone, and formatting to mimic your writing style perfectly.
+                        </p>
+
+                        <div className="space-y-2">
+                            <textarea
+                                placeholder="Paste a post you've written here..."
+                                className="w-full bg-surface-100 border rounded-xl px-4 py-3 min-h-[120px] focus:ring-2 focus:ring-brand-primary outline-none transition-all resize-none"
+                                value={newSample}
+                                onChange={(e) => setNewSample(e.target.value)}
+                            />
+                            <button
+                                onClick={handleAddSample}
+                                disabled={addingSample || !newSample.trim()}
+                                className="bg-brand-primary/10 text-brand-primary px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-primary/20 transition-all disabled:opacity-50"
+                            >
+                                {addingSample ? "Adding..." : "Add Style Sample"}
+                            </button>
+                        </div>
+
+                        {samples.length > 0 && (
+                            <div className="grid gap-3 pt-2">
+                                <label className="text-xs font-semibold uppercase tracking-wider text-foreground/40">Saved Samples</label>
+                                {samples.map((sample) => (
+                                    <div key={sample.id} className="group relative bg-surface-100 border rounded-xl p-4 pr-12 transition-all hover:border-brand-primary/30">
+                                        <p className="text-sm line-clamp-3 text-foreground/80 leading-relaxed italic">"{sample.content}"</p>
+                                        <button
+                                            onClick={() => handleDeleteSample(sample.id)}
+                                            className="absolute top-4 right-4 p-1.5 text-foreground/20 hover:text-red-500 hover:bg-red-50 transition-all rounded-md opacity-0 group-hover:opacity-100"
+                                        >
+                                            <AlertCircle className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </section>
 

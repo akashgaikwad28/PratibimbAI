@@ -1,13 +1,18 @@
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from app.jobs.store import (
     create_job, update_job, get_job, get_profile, update_profile, 
-    JobStatus, get_sources, create_source, update_source, delete_source
+    JobStatus, get_sources, create_source, update_source, delete_source,
+    get_style_samples, store_memory, delete_memory
 )
-from app.api.schemas import GenerateRequest, UpdateProfile, SourceCreate, SourceUpdate, SourceResponse, IdeaRequest, FinalizeRequest
-from app.services.agent import run_agent
+from app.api.schemas import (
+    GenerateRequest, UpdateProfile, SourceCreate, SourceUpdate, 
+    SourceResponse, IdeaRequest, FinalizeRequest,
+    StyleSampleCreate, StyleSampleResponse
+)
+from app.services.orchestration.agent import run_agent
 from app.services.llm.factory import get_llm
 from app.utils.prompt_loader import load_prompt
-from app.jobs.store import store_memory
+from app.utils.prompt_loader import load_prompt
 from app.services.embedding import get_embeddings
 from app.utils.logger import get_logger
 from app.config import config
@@ -24,9 +29,9 @@ logger = get_logger("api.generate")
 @router.post("/generate")
 def generate_async(
     request: GenerateRequest,
-    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user)
 ):
+    from app.services.orchestration.queue import enqueue_agent_job
     user_id = user.id
 
     job_id = create_job(user_id, {
@@ -38,11 +43,12 @@ def generate_async(
         "num_posts": request.num_posts
     })
 
-    background_tasks.add_task(run_agent, job_id, request)
+    # Enqueue to Redis Worker for reliability and scalability
+    enqueue_agent_job(job_id, request.dict())
 
     return {
         "job_id": job_id,
-        "status": "queued"
+        "status": "enqueued"
     }
 
 @router.get("/job/{job_id}")
@@ -190,3 +196,34 @@ def finalize_job(request: FinalizeRequest, user: User = Depends(get_current_user
 def fetch_trends(source: str = "hacker_news"):
     from app.services.trends import get_latest_trends
     return get_latest_trends(source)
+
+# --- Style Sample Routes ---
+
+@router.get("/profile/samples", response_model=list[StyleSampleResponse])
+def list_style_samples(user: User = Depends(get_current_user)):
+    return get_style_samples(user.id)
+
+@router.post("/profile/samples", response_model=StyleSampleResponse)
+def add_style_sample(request: StyleSampleCreate, user: User = Depends(get_current_user)):
+    try:
+        # Generate Embedding
+        vector = get_embeddings(request.content)
+        if not vector:
+            raise HTTPException(status_code=500, detail="Failed to generate embedding")
+            
+        res = store_memory(
+            user_id=user.id,
+            content=request.content,
+            platform=request.platform,
+            embedding=vector,
+            is_style_sample=True
+        )
+        return res.data[0]
+    except Exception as e:
+        logger.error(f"Style sample creation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/profile/samples/{sample_id}")
+def remove_style_sample(sample_id: str, user: User = Depends(get_current_user)):
+    delete_memory(sample_id, user.id)
+    return {"status": "success"}

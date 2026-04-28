@@ -6,7 +6,9 @@ def instrument_node(node_name: str):
 
     def decorator(func):
         def wrapper(state):
-            logger.info("START")
+            # Extract execution_id for logging context (Task 6)
+            execution_id = getattr(state, "execution_id", "unknown")
+            logger.info(f"[{execution_id}] START node={node_name}")
 
             start = time.time()
             try:
@@ -14,14 +16,14 @@ def instrument_node(node_name: str):
                 duration = round(time.time() - start, 3)
 
                 logger.info(
-                    f"SUCCESS | duration={duration}s"
+                    f"[{execution_id}] SUCCESS node={node_name} | duration={duration}s"
                 )
                 return result
 
             except Exception as e:
                 duration = round(time.time() - start, 3)
                 logger.error(
-                    f"FAILURE | duration={duration}s | error={str(e)}"
+                    f"[{execution_id}] FAILURE node={node_name} | duration={duration}s | error={str(e)}"
                 )
                 raise
 

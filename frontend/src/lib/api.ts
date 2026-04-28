@@ -61,4 +61,13 @@ export const api = {
         body: JSON.stringify(data),
     }),
     getTrends: (source: string = "hacker_news") => fetchWithAuth(`/api/trends?source=${source}`),
+    // Ghostwriter Mode
+    getStyleSamples: () => fetchWithAuth("/api/profile/samples"),
+    addStyleSample: (content: string, platform: string = "LinkedIn") => fetchWithAuth("/api/profile/samples", {
+        method: "POST",
+        body: JSON.stringify({ content, platform }),
+    }),
+    deleteStyleSample: (id: string) => fetchWithAuth(`/api/profile/samples/${id}`, {
+        method: "DELETE",
+    }),
 };

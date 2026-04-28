@@ -1,0 +1,7 @@
+Generate 5 viral post ideas for the following news/topic:
+Topic: {{topic}}
+
+For each idea, provide:
+1. A punchy headline/hook
+2. The core "angle" (e.g., controversial, educational, personal story)
+3. Why it will work on social media

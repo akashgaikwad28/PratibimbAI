@@ -57,3 +57,18 @@ class SourceResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+# --- Style Sample Schemas ---
+
+class StyleSampleCreate(BaseModel):
+    content: str
+    platform: Optional[str] = "LinkedIn"
+
+class StyleSampleResponse(BaseModel):
+    id: str
+    content: str
+    platform: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

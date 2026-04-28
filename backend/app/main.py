@@ -2,7 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router
 from app.utils.logger import get_logger
-from app.services.scheduler import start_scheduler
+from app.services.orchestration.scheduler import start_scheduler
+from app.core.config import settings
 
 logger = get_logger("app")
 
@@ -12,10 +13,9 @@ app = FastAPI(
     version="0.1.0"
 )
 
-# Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, replace with specific origins
+    allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -30,4 +30,4 @@ def startup():
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok"}
+    return {"status": "ok", "env": settings.APP_ENV}

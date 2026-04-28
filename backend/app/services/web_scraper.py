@@ -1,4 +1,7 @@
-import requests
+import httpx
+from app.utils.logger import get_logger
+
+logger = get_logger("services.scraper")
 
 HEADERS = {
     "User-Agent": (
@@ -9,10 +12,24 @@ HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 
+
+async def fetch_website_text_async(url: str) -> str:
+    try:
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+            response = await client.get(url, headers=HEADERS)
+            response.raise_for_status()
+            return response.text
+    except Exception as e:
+        logger.warning(f"Async fetch failed for {url}: {e}")
+        return f"ERROR fetching {url}: {e}"
+
+
 def fetch_website_text(url: str) -> str:
     try:
-        response = requests.get(url, headers=HEADERS, timeout=15)
-        response.raise_for_status()
-        return response.text
+        with httpx.Client(timeout=15.0, follow_redirects=True) as client:
+            response = client.get(url, headers=HEADERS)
+            response.raise_for_status()
+            return response.text
     except Exception as e:
+        logger.warning(f"Sync fetch failed for {url}: {e}")
         return f"ERROR fetching {url}: {e}"

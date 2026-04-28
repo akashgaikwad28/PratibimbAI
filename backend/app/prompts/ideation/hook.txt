@@ -1,0 +1,9 @@
+Create 3 distinct, high-impact opening hooks for a {{platform}} post about: {{topic}}.
+Insights found: {{insights}}
+
+The hook should be:
+- Thumb-stopping
+- Provocative or Curious
+- Less than 150 characters
+
+Return ONLY the best hook. No filler.

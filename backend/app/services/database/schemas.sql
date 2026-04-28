@@ -103,6 +103,7 @@ CREATE TABLE IF NOT EXISTS memory_embeddings (
     job_id UUID REFERENCES jobs(id) ON DELETE SET NULL,
     content TEXT NOT NULL,
     platform TEXT,
+    is_style_sample BOOLEAN DEFAULT FALSE, -- Labelled manually for high-quality style matching
     embedding VECTOR(384), -- Standard for lightweight models (e.g. all-MiniLM-L6-v2)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );

@@ -1,0 +1,11 @@
+Analyze the following social media post for quality, engagement potential, and factual accuracy.
+
+Topic: {{topic}}
+Author Persona: {{profession}}
+Post:
+{{post}}
+
+Return a JSON object with:
+1. scores: {virality: 1-10, clarity: 1-10, value: 1-10}
+2. overall_score: 1-10
+3. feedback: Specific, actionable suggestions to improve the hook, the body, or the call to action.

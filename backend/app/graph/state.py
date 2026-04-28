@@ -29,7 +29,6 @@ class GraphState(BaseModel):
     llm_provider: str = "openai"
     llm_api_key: Optional[str] = None
     
-
     failed_urls: List[str] = []
     fallback_used: bool = False
     
@@ -38,6 +37,7 @@ class GraphState(BaseModel):
     critic_feedback: Optional[str] = None
     retry_count: int = 0
     
-    # Pro Features: Memory
+    # Pro Features: Intelligence
     user_id: Optional[str] = None
+    hook: Optional[str] = None
     context_memories: List[str] = [] # Retrieved past posts for style matching

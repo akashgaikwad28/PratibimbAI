@@ -1,77 +1,70 @@
 from app.graph.graph import build_graph
 from app.jobs.store import update_job, get_job, get_profile, JobStatus
-from app.utils.logger import get_logger
-from app.config import config
+from app.utils.logger import get_logger, set_execution_id
+from app.core.config import settings
 from app.api.schemas import GenerateRequest
 
 logger = get_logger("services.agent")
-graph = build_graph()
+_graph = None
+
+
+def _get_graph():
+    global _graph
+    if _graph is None:
+        _graph = build_graph()
+    return _graph
+
 
 def run_agent(job_id: str, request: GenerateRequest):
-    logger.info(f"Job {job_id} started")
-
+    set_execution_id(job_id)
+    logger.info(f"Job started")
     update_job(job_id, {"status": JobStatus.RUNNING})
 
     try:
-        # 1. Fetch Job and User Profile
         job = get_job(job_id)
         if not job:
             raise Exception("Job record not found")
-        
-        user_id = job.get("user_id")
-        profile = get_profile(user_id) if user_id else None
-        
-        # 2. Extract User-Specific API Key with Priority
-        selected_provider = None
-        active_key = None
-        
-        if profile:
-            if profile.get("groq_api_key"):
-                selected_provider = "groq"
-                active_key = profile.get("groq_api_key")
-            elif profile.get("gemini_api_key"):
-                selected_provider = "gemini"
-                active_key = profile.get("gemini_api_key")
-            elif profile.get("openai_api_key"):
-                selected_provider = "openai"
-                active_key = profile.get("openai_api_key")
-        
-        # 3. Fallback to Request choice or System defaults if no user key found
-        if not active_key:
-            selected_provider = request.llm_provider or config.LLM_PROVIDER
-            active_key = config.get_api_key(selected_provider)
-            logger.info(f"Using fallback/default provider {selected_provider}")
-        else:
-            logger.info(f"Using user-provided key for {selected_provider}")
 
-        # 4. Invoke Graph with dynamic keys
-        result = graph.invoke({
+        user_id = job.get("user_id")
+        profile = get_profile(user_id) if user_id else {}
+        profile = profile or {}
+
+        # Task 5: Use fallback chain for robustness
+        from app.services.llm.factory import get_llm_with_fallback
+        
+        system_keys = {
+            "openai": settings.OPENAI_API_KEY,
+            "groq": settings.GROQ_API_KEY,
+            "gemini": settings.GEMINI_API_KEY
+        }
+        
+        _, selected_provider = get_llm_with_fallback(profile, system_keys)
+        active_key = profile.get(f"{selected_provider}_api_key") or system_keys.get(selected_provider)
+
+        result = _get_graph().invoke({
             "topic": request.topic,
             "urls": request.urls,
             "tone": request.tone,
             "style": request.style,
             "platform": request.platform,
             "num_posts": request.num_posts,
-            "profession": profile.get("profession") if profile else None,
+            "profession": profile.get("profession"),
+            "user_id": user_id,
             "raw_contents": [],
             "clean_contents": [],
             "ranked_contents": None,
             "final_posts": [],
             "llm_provider": selected_provider,
-            "llm_api_key": active_key
+            "llm_api_key": active_key,
         })
 
         update_job(job_id, {
             "status": JobStatus.COMPLETED,
             "final_posts": result.get("final_posts", []),
-            "critic_feedback": result.get("critic_feedback", "")
+            "critic_feedback": result.get("critic_feedback", ""),
         })
-
-        logger.info(f"Job {job_id} completed")
+        logger.info(f"Job completed successfully")
 
     except Exception as e:
-        update_job(job_id, {
-            "status": JobStatus.FAILED,
-            "errors": [str(e)]
-        })
-        logger.error(f"Job {job_id} failed: {str(e)}")
+        update_job(job_id, {"status": JobStatus.FAILED, "errors": [str(e)]})
+        logger.error(f"Job failed: {e}")
